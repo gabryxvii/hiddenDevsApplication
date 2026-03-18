@@ -1,19 +1,29 @@
 --[[ 
-	This script essentially deals with the comabat systems, it also allows to scalably insert new styles by adding it in the combatStyles dictionary, 
+	https://www.roblox.com/games/86962201967541/Battlegrounds-test
+	This script essentially deals with the combat systems, it also allows to scalably insert new styles by adding it in the combatStyles dictionary, 
 	should be following the typeCombatStyles. Plus the animations must be placed into ReplicatedStorage.Anims.
 	VFX hasn't been implemented yet.
+
+	This script relies on client's input which are received from remotes Events. Based on which input, it will fire its correspondant remote event, which each of them
+	has linked their specific function (for m1,m2,blocking attacks,skill1,skill2,skill3)
 ]]
 -- [SERVICES 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 -- ]
--- [
+-- [ Anims,Sounds and VFX. Those are used to automatically refer to their instances without needing to manually add each of them into the script
 local Anims = ReplicatedStorage.Anims
 local Sounds = ReplicatedStorage.Sounds
 local VFX = ReplicatedStorage.VFX
 -- ]
 local combatStyles = {
+	--["??"] = {
+		--	Stats = {},
+		--	Animations = {},
+		--	VFX = {},
+		--	Sounds = {},
+		--},
 	Boxing = {
 		Stats = {
 			m1 = {dmg = 7, cd = 0.5, comboCD = 3, guardBreak = false, HitboxSize = Vector3.new(4,4,4), KnockBack = 75, CombatSpeed = 3, WalkSpeed = 6},
@@ -25,7 +35,6 @@ local combatStyles = {
 			stun = {stunTime = 0.65,enemyWalkSpeed = 6}
 		},
 	} :: typeCombatStyles,
-	
 	Karate = {
 		Stats = {
 			m1 = {dmg = 10, cd = 0.85, comboCD = 3, guardBreak = false, HitboxSize = Vector3.new(4,4,4.75), KnockBack = 75, CombatSpeed = 1, WalkSpeed = 6},
@@ -37,13 +46,6 @@ local combatStyles = {
 			stun = {stunTime = 0.85,enemyWalkSpeed = 6}
 		},
 	} :: typeCombatStyles,
-	
-	--["??"] = {
-	--	Stats = {},
-	--	Animations = {},
-	--	VFX = {},
-	--	Sounds = {},
-	--},
 	
 	PlayerStatus = {},
 	AnimationsTable = {},
