@@ -2,10 +2,11 @@
 	https://www.roblox.com/games/86962201967541/Battlegrounds-test
 	This script essentially deals with the combat systems, it also allows to scalably insert new styles by adding it in the combatStyles dictionary, 
 	should be following the typeCombatStyles. Plus the animations must be placed into ReplicatedStorage.Anims.
-	VFX hasn't been implemented yet.
 
 	This script relies on client's input which are received from remotes Events. Based on which input, it will fire its correspondant remote event, which each of them
 	has linked their specific function (for m1,m2,blocking attacks,skill1,skill2,skill3)
+
+	NOTE: VFX hasn't been implemented yet. And some skills do not have animations, so they won't be executed in the game
 ]]
 -- [SERVICES 
 local Players = game:GetService("Players")
