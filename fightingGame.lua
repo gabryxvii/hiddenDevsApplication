@@ -1,4 +1,5 @@
 --[[ 
+	Made by gabryxvii_ (discord)/ Gabry103 (roblox)
 	https://www.roblox.com/games/86962201967541/Battlegrounds-test
 	This script essentially deals with the combat systems, it also allows to scalably insert new styles by adding it in the combatStyles dictionary, 
 	should be following the typeCombatStyles. Plus the animations must be placed into ReplicatedStorage.Anims.
