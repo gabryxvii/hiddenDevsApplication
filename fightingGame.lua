@@ -1,29 +1,29 @@
 --[[ 
 	Made by gabryxvii_ (discord)/ Gabry103 (roblox)
 	https://www.roblox.com/games/86962201967541/Battlegrounds-test
-	This script essentially deals with the combat systems, it also allows to scalably insert new styles by adding it in the combatStyles dictionary, 
+	This script essentially deals with the combat systems, it also allows to scalably insert new styles by adding it in the combatStylesConfig dictionary, 
 	should be following the typeCombatStyles. Plus the animations must be placed into ReplicatedStorage.Anims.
 
 	This script relies on client's input which are received from remotes Events. Based on which input, it will fire its correspondant remote event, which each of them
-	has linked their specific function (for m1,m2,blocking attacks,skill1,skill2,skill3)
+	has linked their specific method (for m1,m2,blocking attacks,skill1,skill2,skill3)
+
+	It uses OOP, the class is combatStyle and each player is an object. Each object has his variables (cooldowns, style etc...). It uses methods to deals with the combat system logic.
 
 	NOTE: VFX hasn't been implemented yet. And some skills do not have animations, so they won't be executed in the game
 ]]
 
--- This script is called through a Server Script which calls the function .Start()
 -- [SERVICES 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 -- ]
-
 -- [ Anims,Sounds and VFX. Those are used to automatically refer to their instances without needing to manually add each of them into the script
 local Anims = ReplicatedStorage.Anims
 local Sounds = ReplicatedStorage.Sounds
 local VFX = ReplicatedStorage.VFX
 local Events = ReplicatedStorage.Events
-
-local combatStyles = {
+-- ]
+local combatStylesConfig = {
 	Boxing = {
 		Stats = {
 			m1 = {dmg = 7, cd = 0.5, comboCD = 3, guardBreak = false, HitboxSize = Vector3.new(4,4,4), KnockBack = 75, CombatSpeed = 3, WalkSpeed = 6},
@@ -34,9 +34,7 @@ local combatStyles = {
 			block = {WalkSpeed = 6},
 			stun = {stunTime = 0.65, enemyWalkSpeed = 6}
 		},
-		Animations = {},
-		Sounds = {},
-		VFX = {},
+		Animations = {}, Sounds = {}, VFX = {},
 	} ::typeCombatStyles,
 	Karate = {
 		Stats = {
@@ -48,13 +46,9 @@ local combatStyles = {
 			block = {WalkSpeed = 6},
 			stun = {stunTime = 0.85, enemyWalkSpeed = 6}
 		},
-		Animations = {},
-		Sounds = {},
-		VFX = {},
+		Animations = {}, Sounds = {}, VFX = {},
 	} ::typeCombatStyles,
 }
-
-combatStyles.__index = combatStyles
 
 type typeCombatStyles = {
 	Stats: { [string]: number },
@@ -62,6 +56,9 @@ type typeCombatStyles = {
 	VFX: { [string]: any },
 	Sounds: { [string]: Sound? },
 }
+
+local CombatManager = {}
+CombatManager.__index = CombatManager
 
 -- [ VARIABLES ]
 local allPlayers = {}
@@ -82,9 +79,7 @@ local skillEvents = {
 	It grabs the animations and sounds from the ReplicatedStorage insert the animations and sounds into the combatStyle table.
 ]]
 local function automaticInserterOf_Anims_Sounds_VFX()
-	for styleName, data in pairs(combatStyles) do
-		if type(data) ~= "table" or not data.Stats then continue end
-
+	for styleName, data in pairs(combatStylesConfig) do
 		local folders = {Animations = Anims, Sounds = Sounds, VFX = VFX}
 		for key, rootFolder in pairs(folders) do
 			local styleFolder = rootFolder:FindFirstChild(styleName)
@@ -98,16 +93,14 @@ local function automaticInserterOf_Anims_Sounds_VFX()
 end
 
 --[[ [ CONSTRUCTOR ]  
-	
 	An object is created for the player once the function is called and 
 	it sets player's data and loads animation and sounds.
-	
 ]]
-function combatStyles.new(plr, styleName)
-	local styleData = combatStyles[styleName]
+function CombatManager.new(plr, styleName)
+	local styleData = combatStylesConfig[styleName]
 	if not styleData then return nil end
 
-	local self = setmetatable({}, combatStyles)
+	local self = setmetatable({}, CombatManager)
 
 	self.Plr = plr
 	self.Char = plr.Character or plr.CharacterAdded:Wait()
@@ -117,7 +110,6 @@ function combatStyles.new(plr, styleName)
 	self.AnimsTable = {}
 	self.SoundsTable_ = {}
 	self.Style = styleName
-	--self.State = "Idle"
 
 	self.canM1 = true
 	self.canM2 = true
@@ -141,17 +133,6 @@ function combatStyles.new(plr, styleName)
 	return self
 end
 
--- [ GET/SET ]
-function combatStyles:Get(attribute: string)
-	return self[attribute]
-end
-
-function combatStyles:Set(attribute: string, value)
-	if self[attribute] ~= nil then
-		self[attribute] = value
-	end
-end
-
 -- [ ASSET LOADING ]
 --[[
 	combatStyles:loadAnimations()
@@ -161,17 +142,22 @@ end
 	combatStyles:createSounds()
 	 Same thing was done for the sounds, with the only difference that the sound is cloned into the HumanoidRootPart, so the sound can start from there and not be heard throught the whole map.
 ]]
-function combatStyles:loadAnimations()
-	local styleData = combatStyles[self.Style]
-	local animator = self.Hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", self.Hum)
+
+function CombatManager:loadAnimations()
+	local styleData = combatStylesConfig[self.Style]
+	local animator = self.Hum:FindFirstChildOfClass("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = self.Hum
+	end
 
 	for name, anim in pairs(styleData.Animations) do
 		self.AnimsTable[name] = animator:LoadAnimation(anim)
 	end
 end
 
-function combatStyles:createSounds()
-	local styleData = combatStyles[self.Style]
+function CombatManager:createSounds()
+	local styleData = combatStylesConfig[self.Style]
 	for name, soundTemplate in pairs(styleData.Sounds) do
 		local s = soundTemplate:Clone()
 		s.Parent = self.Root
@@ -195,11 +181,11 @@ end
 	--
 ]]
 
-function combatStyles:PlayAnim(name, atkType,keyFrame)
+function CombatManager:PlayAnim(name, atkType, keyFrame)
 	local track = self.AnimsTable[name]
 	if not track then return end
 
-	local styleData = combatStyles[self.Style]
+	local styleData = combatStylesConfig[self.Style]
 	local speed = atkType and styleData.Stats[atkType].CombatSpeed or 1
 
 	if keyFrame then
@@ -220,13 +206,13 @@ function combatStyles:PlayAnim(name, atkType,keyFrame)
 	return track
 end
 
-function combatStyles:StopAnim(name)
+function CombatManager:StopAnim(name)
 	if self.AnimsTable[name] then
 		self.AnimsTable[name]:Stop()
 	end
 end
 
-function combatStyles:PlaySound(name)
+function CombatManager:PlaySound(name)
 	if self.SoundsTable_[name] then
 		self.SoundsTable_[name]:Play()
 	end
@@ -242,8 +228,10 @@ end
 	We set the index as the humanoid and then we check it true, then we check if the target is blocking, if the hit comes from behind (we detect it through the dot product) the damage is applied, the sounds is played
 	and the enemy is stunned. Knockback is applied based on the knockback value in the style data and if it's m2 or last m1 hit.
 ]]
-function combatStyles:PerformHitbox(dmg, atkType, isGuardBreak)
-	local statistics = combatStyles[self.Style].Stats[atkType]
+
+function CombatManager:PerformHitbox(dmg, atkType, isGuardBreak)
+	local styleData = combatStylesConfig[self.Style]
+	local statistics = styleData.Stats[atkType]
 	local size = statistics.HitboxSize
 	local pos = self.Root.CFrame * CFrame.new(0, 0, -size.Z/2)
 
@@ -265,7 +253,7 @@ function combatStyles:PerformHitbox(dmg, atkType, isGuardBreak)
 
 			if targetObj and targetObj.isBlocking and not isGuardBreak then
 				local dot = self.Root.CFrame.LookVector:Dot(targetObj.Root.CFrame.LookVector)
-				if dot < 0.2 then -- Not behind
+				if dot < 0.2 then
 					targetObj:PlaySound("blockingSound")
 					continue
 				end
@@ -277,7 +265,7 @@ function combatStyles:PerformHitbox(dmg, atkType, isGuardBreak)
 			self:PlaySound("punchSound")
 
 			if targetObj then
-				targetObj:Stun(combatStyles[self.Style].Stats.stun)
+				targetObj:Stun(styleData.Stats.stun)
 			end
 
 			if statistics.KnockBack > 0 and (atkType == "m2" or (atkType == "m1" and self.ComboIndex == 4)) then
@@ -292,7 +280,8 @@ end
 	we stun the player based on the stunStats in each attack. we use StunTuick and current to prevent from multiple hitstun stacking.
 	then we slow down the player and use task.delay to unstun him after the stunTime is over
 ]]
-function combatStyles:Stun(stunStats)
+
+function CombatManager:Stun(stunStats)
 	self.StunTick += 1
 	local current = self.StunTick
 	self.isStunned = true
@@ -318,10 +307,13 @@ end
 	and then multiply it by the attack's knockback
 	
 ]]
-function combatStyles:ApplyKnockback(targetRoot, force)
+
+function CombatManager:ApplyKnockback(targetRoot, force)
 	if not targetRoot then return end
-	local att = Instance.new("Attachment", targetRoot)
-	local vel = Instance.new("LinearVelocity", targetRoot)
+	local att = Instance.new("Attachment")
+	att.Parent = targetRoot
+
+	local vel = Instance.new("LinearVelocity")
 	vel.MaxForce = 2500000
 	vel.Attachment0 = att
 	vel.VectorVelocity = (self.Root.CFrame.LookVector + Vector3.new(0, 0.25, 0)).Unit * force
@@ -341,16 +333,17 @@ end
 	It fires the event to tell the client to show the cooldown in the ui
 	It retrieves the cooldown per M1 and uses task.delay and set the canM1 to true after the cd is over.
 ]]
-function combatStyles:M1()
+
+function CombatManager:M1()
 	if not self.canM1 or self.isBlocking or self.isStunned or self.isHitting then return end
 
-	local statistic = combatStyles[self.Style].Stats.m1
-	if tick() - self.LastM1Time >= 5 then self.ComboIndex = 0 end
+	local statistic = combatStylesConfig[self.Style].Stats.m1
+	if os.clock() - self.LastM1Time >= 5 then self.ComboIndex = 0 end -- Usato os.clock() anziché tick()
 
 	self.ComboIndex = (self.ComboIndex % 4) + 1
 	self.isHitting = true
 	self.canM1 = false
-	self.LastM1Time = tick()
+	self.LastM1Time = os.clock()
 	self.Hum.WalkSpeed = statistic.WalkSpeed
 
 	self:PlayAnim("m1_"..self.ComboIndex, "m1", "Hit")
@@ -370,10 +363,10 @@ end
 	It fires the event to tell the client to show the cooldown in the ui
 ]]
 
-function combatStyles:M2()
+function CombatManager:M2()
 	if not self.canM2 or self.isBlocking or self.isStunned or self.isHitting then return end
 
-	local statistic = combatStyles[self.Style].Stats.m2
+	local statistic = combatStylesConfig[self.Style].Stats.m2
 	self.isHitting = true
 	self.canM2 = false
 	self.Hum.WalkSpeed = statistic.WalkSpeed
@@ -390,10 +383,11 @@ end
 	It checks if the user can block, then set the isBlocking, if it's true it plays the animation and slows Walkspeed else it stops and unslows Walkspeed. Fires the canRun remoteEvent and passes the opposite of the isBlocking.
 	If the player is blocking it won't run. The run is client sided for performance reasons
 ]]
-function combatStyles:Block(isPressing)
+
+function CombatManager:Block(isPressing)
 	if self.isStunned or (self.isHitting and isPressing) then return end
 
-	local stats = combatStyles[self.Style].Stats.block
+	local stats = combatStylesConfig[self.Style].Stats.block
 	self.isBlocking = isPressing
 
 	if isPressing then
@@ -403,7 +397,7 @@ function combatStyles:Block(isPressing)
 		self:StopAnim("block")
 		self.Hum.WalkSpeed = self.LastWalkSpeed
 	end
-	Events.canRun:FireClient(self.Plr,not self.isBlocking)
+	Events.canRun:FireClient(self.Plr, not self.isBlocking)
 end
 
 --[[
@@ -413,10 +407,10 @@ end
 	It plays the animation and deals the cooldown, set the canSkill to true after the cd is over
 ]]
 
-function combatStyles:ExecuteSkill(skill)
+function CombatManager:ExecuteSkill(skill)
 	if not self["can"..skill] or self.isBlocking or self.isStunned or self.isHitting then return end
 
-	local statistic = combatStyles[self.Style].Stats[skill]
+	local statistic = combatStylesConfig[self.Style].Stats[skill]
 	self["can"..skill] = false
 	self.isHitting = true
 
@@ -428,19 +422,16 @@ end
 
 --[[
 	combatStyles:ChangeStyle()
-	Context: There's a ui in the client to select the style.
+	Context: There's an ui in the client to select the style.
 	It makes the user to swap combat Styles, all the animations and sound are stopped and replaced by setting the self.Style and recalling the :loadAnimations() and :createSounds()
 	Plays the animation statce and deals with the cooldown to prevent the player from spamming the style change.
 ]]
-function combatStyles:ChangeStyle(newStyle)
-	if not combatStyles[newStyle] or debounceChangeStyle[self.Plr] then return end
+
+function CombatManager:ChangeStyle(newStyle)
+	if not combatStylesConfig[newStyle] or debounceChangeStyle[self.Plr] then return end
 
 	debounceChangeStyle[self.Plr] = true
-	for _, track in pairs(self.AnimsTable) do track:Stop(); track:Destroy() end
-	for _, sound in pairs(self.SoundsTable_) do sound:Destroy() end
-
-	table.clear(self.AnimsTable)
-	table.clear(self.SoundsTable_)
+	self:CleanAssets()
 
 	self.Style = newStyle
 	self:loadAnimations()
@@ -449,6 +440,16 @@ function combatStyles:ChangeStyle(newStyle)
 	if self.AnimsTable["stance"] then self.AnimsTable["stance"]:Play() end
 
 	task.delay(cdChangeStyle, function() debounceChangeStyle[self.Plr] = false end)
+end
+
+-- destroyes animations and sound an clean the tables. So it cleans everythimg to prevent memory leaks
+function CombatManager:Destroy()
+	for _, track in pairs(self.AnimsTable) do track:Stop(); track:Destroy() end
+	for _, sound in pairs(self.SoundsTable_) do sound:Destroy() end
+	table.clear(self.AnimsTable)
+	table.clear(self.SoundsTable_)
+	
+	allPlayers[self.Plr] = nil
 end
 
 -- [ EVENT LISTENERS ] . Pretty simple, they just run the functions whenever from the client, the input is pressed (when the input is pressed the event is fired to the server).
@@ -474,11 +475,10 @@ Events.changeStyle.OnServerEvent:Connect(function(plr, style)
 	if allPlayers[plr] then allPlayers[plr]:ChangeStyle(style) end
 end)
 
--- THIS remote function is used to grab all the existing fighting style and send it to the client automatically, without needing to update the client every time a new style is added.
 Events.getFightingStyles.OnServerInvoke = function()
 	local names = {}
-	for name, data in pairs(combatStyles) do
-		if type(data) == "table" and data.Stats then table.insert(names, name) end
+	for name, _ in pairs(combatStylesConfig) do
+		table.insert(names, name)
 	end
 	return names
 end
@@ -489,23 +489,28 @@ end
 	Once every player joins, it create an object and gives him the boxing style as default. Then it plays the stance animation
 	Whenever a player leaves, his data gets cleared.
 ]] 
-function combatStyles.Start()
+
+function CombatManager.Start()
 	automaticInserterOf_Anims_Sounds_VFX()
 
 	Players.PlayerAdded:Connect(function(plr)
 		plr.CharacterAdded:Connect(function(char)
-			local obj = combatStyles.new(plr, "Boxing")
+			if allPlayers[plr] then
+				allPlayers[plr]:Destroy()
+			end
+
+			local obj = CombatManager.new(plr, "Boxing")
 			task.delay(1, function()
-				if obj.AnimsTable["stance"] then obj.AnimsTable["stance"]:Play() end
+				if obj and obj.AnimsTable["stance"] then obj.AnimsTable["stance"]:Play() end
 			end)
 		end)
 	end)
 
 	Players.PlayerRemoving:Connect(function(plr)
 		if allPlayers[plr] then
-			allPlayers[plr] = nil
+			allPlayers[plr]:Destroy() 
 		end
 	end)
 end
 
-return combatStyles
+return CombatManager
