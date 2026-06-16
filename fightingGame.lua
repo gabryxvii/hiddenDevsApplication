@@ -1,6 +1,12 @@
 --[[ 
+
+	-- IMPORTANT --
 	Made by gabryxvii_ (discord)/ Gabry103 (roblox)
-	https://www.roblox.com/games/86962201967541/Battlegrounds-test
+	Game link : https://www.roblox.com/games/86962201967541/Battlegrounds-test 
+	(It may break, since I haven't uploaded all the skill animations or some are invalid. If that happens, just rejoin)
+	Clip of it working : https://drive.google.com/file/d/1FlmhmmrU2i6HdqwLp8a3gAD-BPCp3cbu/view?usp=drive_link
+	-- 
+
 	This script essentially deals with the combat systems, it also allows to scalably insert new styles by adding it in the combatStylesConfig dictionary, 
 	should be following the typeCombatStyles. Plus the animations must be placed into ReplicatedStorage.Anims.
 
